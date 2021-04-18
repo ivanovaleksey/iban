@@ -2,6 +2,7 @@ package iban
 
 import (
 	"errors"
+	"github.com/ivanovaleksey/iban/pkg/iban/internal/bban"
 	"regexp"
 )
 
@@ -11,12 +12,16 @@ var (
 	ErrUnknownCountry  = errors.New("iban: unknown country")
 )
 
-var knownCountries = map[string]struct{}{
-	"SE": {},
-	"NO": {},
-	"FI": {},
-	"IT": {},
-	"BE": {},
+var knownCountries = map[string]bbanValidator{
+	"SE": bban.NewSE(),
+	"CZ": bban.NewCZ(),
+	"IT": bban.NewIT(),
+	"BE": bban.NewBE(),
+	"BR": bban.NewBR(),
+}
+
+type bbanValidator interface {
+	Validate(string) error
 }
 
 var (
@@ -64,12 +69,15 @@ func Parse(value string) (IBAN, error) {
 func validate(country, check, bban string) error {
 	const validChecksum = 1
 
-	_, ok := knownCountries[country]
+	validator, ok := knownCountries[country]
 	if !ok {
 		return ErrUnknownCountry
 	}
 	if calcChecksum(country, check, bban) != validChecksum {
 		return ErrInvalidChecksum
+	}
+	if err := validator.Validate(bban); err != nil {
+		return err
 	}
 
 	return nil
